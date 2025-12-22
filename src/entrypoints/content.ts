@@ -2,15 +2,15 @@ export default defineContentScript({
   matches: ['*://ufuture.uitm.edu.my/*'],
   runAt: "document_start",
   main() {
-    const style = document.createElement('style');
-    style.textContent = `
+    const navPfpStyle = document.createElement('style');
+    navPfpStyle.textContent = `
       .topbar .float-right img,
       #image[alt=team-member] {
         display: none !important;
       }
     `;
 
-    (document.head ?? document.documentElement).append(style);
+    document.documentElement.append(navPfpStyle);
 
     window.addEventListener('DOMContentLoaded', () => {
       const pfpImg = document.querySelector('.topbar .float-right img');
@@ -18,13 +18,15 @@ export default defineContentScript({
 
       if (pfpSrc) {
         // hide all img with src=pfpSrc (add style)
-        const style = document.createElement('style');
-        style.textContent = `
+        const imgStyle = document.createElement('style');
+        imgStyle.textContent = `
           img[src="${pfpSrc}"] {
             display: none !important;
           }
         `;
-        (document.head ?? document.documentElement).append(style);
+
+        navPfpStyle.remove();
+        document.head.append(imgStyle);
       }
     });
   },

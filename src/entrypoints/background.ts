@@ -1,6 +1,3 @@
-
-import { onMessage } from "webext-bridge/background";
-
 export default defineBackground(() => {
   console.log('Hello from UWrench!');
 
