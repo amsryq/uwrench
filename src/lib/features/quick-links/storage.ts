@@ -5,8 +5,6 @@ export type QuickLink = {
   icon: string;
   name: string;
   desc: string;
-
-  // Additional fields (allowed): needed so the link can be opened later.
   href: string;
   addedAt?: string;
 };
