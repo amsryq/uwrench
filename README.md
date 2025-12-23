@@ -12,8 +12,8 @@
 - [x] Allow pinning of folders in the course content.
 - [x] Allow quick links in dashboard to jump to specific sections in course contents.
 - [x] Allow hiding your profile picture or any student information.
+- [x] Remember course content folder passwords.
 - [ ] Show active classes in the dashboard.
-- [ ] Remember course content folder passwords.
 - [ ] Remember the last sort option selected in course content.
 - [ ] Read all notifications in one click.
 - [ ] Link to online class link after ticking attendance.
