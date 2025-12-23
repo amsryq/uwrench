@@ -1,7 +1,9 @@
 import { setupStreamerMode } from '../../lib/features/streamer-mode';
 import { setupCourseContentTableActions } from './patches/course-content-table-actions';
 import { setupCourseContentFolderPassword } from './patches/course-content-folder-password';
-import { setupCourseListQuickLinks } from './patches/course-list-quick-links';
+import { setupCourseListPanels } from './patches/course-list-panels';
+import { registerOnlineClassesPanel } from '../../lib/features/online-class-list';
+import { registerQuickLinksPanel } from '../../lib/features/quick-links/quick-links-list';
 import { registerFolderPinningAction } from '../../lib/features/folder-pinning';
 import { registerQuickLinksAction } from '../../lib/features/quick-links';
 
@@ -12,11 +14,13 @@ export default defineContentScript({
     // Patches
     setupCourseContentTableActions();
     setupCourseContentFolderPassword();
-    setupCourseListQuickLinks();
+    setupCourseListPanels();
 
     // Features
     setupStreamerMode();
     registerFolderPinningAction();
+    registerQuickLinksPanel();
+    registerOnlineClassesPanel();
     registerQuickLinksAction();
   },
 });
