@@ -11,7 +11,7 @@
 - [x] Restore the user's previous page after login redirects complete.
 - [x] Allow pinning of folders in the course content.
 - [x] Allow quick links in dashboard to jump to specific sections in course contents.
-- [ ] Allow hiding your profile picture or any student information. (Partially done)
+- [x] Allow hiding your profile picture or any student information.
 - [ ] Show active classes in the dashboard.
 - [ ] Remember course content folder passwords.
 - [ ] Remember the last sort option selected in course content.

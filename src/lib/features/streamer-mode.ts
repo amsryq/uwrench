@@ -1,3 +1,23 @@
+export function setupStreamerMode() {
+  setupPfpRemoval();
+  setupTeamInfoRemoval();
+}
+
+export function setupTeamInfoRemoval() {
+  const teamInfoStyle = document.createElement('style');
+  teamInfoStyle.textContent = `
+    .about-team:has(.col-sm-7 > h5) {
+      display: none !important;
+    }
+  `;
+
+  document.documentElement.append(teamInfoStyle);
+
+  return () => {
+    teamInfoStyle.remove();
+  };
+}
+
 export function setupPfpRemoval() {
   const navPfpStyle = document.createElement('style');
   navPfpStyle.textContent = `

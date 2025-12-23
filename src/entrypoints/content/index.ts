@@ -1,4 +1,4 @@
-import { setupPfpRemoval } from '../../lib/features/pfp-removal';
+import { setupStreamerMode } from '../../lib/features/streamer-mode';
 import { setupCourseContentTableActions } from './patches/course-content-table-actions';
 import { setupCourseListQuickLinks } from './patches/course-list-quick-links';
 import { registerFolderPinningAction } from '../../lib/features/folder-pinning';
@@ -13,7 +13,7 @@ export default defineContentScript({
     setupCourseListQuickLinks();
 
     // Features
-    setupPfpRemoval();
+    setupStreamerMode();
     registerFolderPinningAction();
     registerQuickLinksAction();
   },
