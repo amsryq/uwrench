@@ -1,11 +1,11 @@
 import { FeatureManager } from '../../lib/runtime/feature-manager';
-import { getGlobalConfig } from '../../lib/runtime/feature-configs';
+import { getCourseListConfig } from '../../lib/runtime/feature-configs';
 
 export default defineContentScript({
-  matches: ['*://ufuture.uitm.edu.my/*'],
+  matches: ['*://ufuture.uitm.edu.my/courses/list_course'],
   runAt: 'document_start',
   async main() {
-    const config = await getGlobalConfig();
+    const config = await getCourseListConfig();
 
     const manager = new FeatureManager({
       env: 'content',

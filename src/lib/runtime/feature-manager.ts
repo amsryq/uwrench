@@ -2,6 +2,7 @@ import type { SettingsEnvelope, StoredFeatureState } from '../settings/settings-
 import { loadSettings, watchSettings } from '../settings/settings-store';
 import type { FeatureDef, FeatureState, PatchDef, PatchHandle, PatchId, RegistryId, RuntimeEnv } from './types';
 import { createRegistries, ensureRegistry, type RuntimeRegistries } from './registries';
+import { createContentPatchLoader } from './patch-loader';
 
 type ActiveFeature = {
   cleanup?: () => void | Promise<void>;
@@ -92,15 +93,16 @@ function getRegistryIdsFromPatch(def: PatchDef<any>): RegistryId[] {
 export type FeatureManagerConfig = {
   env: RuntimeEnv;
   features: Array<FeatureDef<any, any, any>>;
-  patches: Array<PatchDef<any>>;
+  patchLoader?: (patchId: PatchId) => Promise<PatchDef<any> | undefined>;
 };
 
 export class FeatureManager {
   private readonly env: RuntimeEnv;
   private readonly featuresById: Map<string, FeatureDef<any, any, any>>;
-  private readonly patchesById: Map<PatchId, PatchDef<any>>;
+  private readonly patchLoader?: (patchId: PatchId) => Promise<PatchDef<any> | undefined>;
 
   private readonly registries: RuntimeRegistries = createRegistries();
+  private readonly patchesById: Map<PatchId, PatchDef<any>> = new Map();
   private readonly activePatches: Map<PatchId, ActivePatch> = new Map();
   private readonly activeFeatures: Map<string, ActiveFeature> = new Map();
 
@@ -110,7 +112,7 @@ export class FeatureManager {
   constructor(config: FeatureManagerConfig) {
     this.env = config.env;
     this.featuresById = new Map(config.features.map((f) => [f.id, f]));
-    this.patchesById = new Map(config.patches.map((p) => [p.id, p]));
+    this.patchLoader = config.patchLoader ?? (this.env === "content" ? createContentPatchLoader() : undefined);
   }
 
   async start(): Promise<void> {
@@ -144,10 +146,12 @@ export class FeatureManager {
     const patchHandles: Partial<Record<PatchId, PatchHandle>> = {};
 
     for (const patchId of patchIds) {
-      const patch = this.patchesById.get(patchId);
-      if (!patch) {
-        throw new Error(`Unknown patch dependency: ${patchId} (feature: ${def.id})`);
+      let patch = this.patchesById.get(patchId);
+      if (!patch && this.patchLoader) {
+        patch = await this.patchLoader(patchId);
+        if (patch) this.patchesById.set(patchId, patch);
       }
+      if (!patch) throw new Error(`Unknown patch dependency: ${patchId} (feature: ${def.id})`);
 
       const active = this.activePatches.get(patchId);
       if (active) {
