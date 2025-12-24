@@ -1,8 +1,9 @@
 import {
-  courseListPanelsRegistry,
   type CourseListPanelApi,
   type CourseListPanelUpdateContext,
 } from '../registries/course-list-panels-registry';
+import type { CourseListPanelsRegistry } from '../registries/course-list-panels-registry';
+import type { FeatureDef } from '../runtime/types';
 
 const ROOT_ID = 'uw-online-class-status';
 const PANEL_NAME = 'course-list-online-class-status';
@@ -38,12 +39,33 @@ let cachedRows: OnlineClassRow[] | null = null;
 let cachedForCodesKey: string | null = null;
 let renderToken = 0;
 
-export function registerOnlineClassesPanel() {
-  courseListPanelsRegistry.add({
-    name: PANEL_NAME,
-    render: (updateCtx, _prepared, api) => renderOnlineClassPanel(updateCtx, api),
-  });
-}
+export const onlineClassListFeature: FeatureDef = {
+  id: 'onlineClassListPanel',
+  title: 'Online Classes (Panel)',
+  description: 'Shows upcoming/active online classes on the course list page.',
+  defaults: { enabled: true, options: {} },
+  dependsOnPatches: ['courseListPanels'],
+  dependsOnRegistries: ['courseListPanels'],
+  setup: async ({ registries }) => {
+    const registry = registries.courseListPanels as CourseListPanelsRegistry | undefined;
+    if (!registry) return {};
+
+    const dispose = registry.register({
+      name: PANEL_NAME,
+      render: (updateCtx, _prepared, api) => renderOnlineClassPanel(updateCtx, api),
+    });
+
+    return {
+      cleanup: () => {
+        dispose();
+        document.getElementById(ROOT_ID)?.remove();
+        cachedRows = null;
+        cachedForCodesKey = null;
+        renderToken++;
+      },
+    };
+  },
+};
 
 function renderOnlineClassPanel(
   _updateCtx: CourseListPanelUpdateContext,

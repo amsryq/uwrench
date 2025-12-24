@@ -1,45 +1,74 @@
-import { contentTableActionsRegistry } from '../registries/content-table-actions-registry';
+import type { FeatureDef } from '../runtime/types';
+import type { ContentTableActionsRegistry } from '../registries/content-table-actions-registry';
 
 const PINNED_FOLDERS_KEY = 'local:pinned_folders';
 
-export function registerFolderPinningAction() {
-  contentTableActionsRegistry.add({
-    name: 'pin',
-    headerText: 'Pin',
-    headerWidth: '5%',
-    iconClass: 'fa fa-thumb-tack',
-    prepare: async () => {
-      return (await storage.getItem<string[]>(PINNED_FOLDERS_KEY)) ?? [];
-    },
-    render: (ctx, pinnedFolders, api) => {
-      const { row, href, button } = ctx;
+export const folderPinningFeature: FeatureDef = {
+  id: 'folderPinning',
+  title: 'Folder Pinning',
+  description: 'Pin course content folders to the top.',
+  defaults: { enabled: true, options: {} },
+  dependsOnPatches: ['courseContentTableActions'],
+  dependsOnRegistries: ['contentTableActions'],
+  setup: async ({ registries }) => {
+    const registry = registries.contentTableActions as ContentTableActionsRegistry | undefined;
+    if (!registry) return {};
 
-      const isPinned = pinnedFolders.includes(href);
+    const dispose = registry.register({
+      name: 'pin',
+      headerText: 'Pin',
+      headerWidth: '5%',
+      iconClass: 'fa fa-thumb-tack',
+      prepare: async () => {
+        return (await storage.getItem<string[]>(PINNED_FOLDERS_KEY)) ?? [];
+      },
+      render: (ctx, pinnedFolders, api) => {
+        const { row, href, button } = ctx;
 
-      button.className = `btn btn-xs ${isPinned ? 'btn-warning' : 'btn-default'}`;
-      button.innerHTML = '<i class="fa fa-thumb-tack"></i>';
-      button.title = isPinned ? 'Unpin' : 'Pin';
+        const isPinned = pinnedFolders.includes(href);
 
-      button.onclick = async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        await togglePin(href);
-        await api.refresh();
-      };
+        button.className = `btn btn-xs ${isPinned ? 'btn-warning' : 'btn-default'}`;
+        button.innerHTML = '<i class="fa fa-thumb-tack"></i>';
+        button.title = isPinned ? 'Unpin' : 'Pin';
 
-      if (isPinned) {
-        row.dataset.pinned = 'true';
-        row.style.backgroundColor = '#fffbe6';
-      } else {
-        row.dataset.pinned = 'false';
-        row.style.backgroundColor = '';
-      }
-    },
-    postUpdate: ({ tbody }) => {
-      sortRowsByPinned(tbody);
-    },
-  });
-}
+        button.onclick = async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          await togglePin(href);
+          await api.refresh();
+        };
+
+        if (isPinned) {
+          row.dataset.pinned = 'true';
+          row.style.backgroundColor = '#fffbe6';
+        } else {
+          row.dataset.pinned = 'false';
+          row.style.backgroundColor = '';
+        }
+      },
+      postUpdate: ({ tbody }) => {
+        sortRowsByPinned(tbody);
+      },
+    });
+
+    return {
+      cleanup: () => {
+        dispose();
+        // Remove any residual styling when the action is disabled but the patch remains.
+        document
+          .querySelectorAll('tbody tr[data-pinned]')
+          .forEach((row) => {
+            if (!(row instanceof HTMLElement)) return;
+            delete row.dataset.pinned;
+            row.style.backgroundColor = '';
+          });
+      },
+    };
+  },
+  clearData: async () => {
+    await storage.setItem(PINNED_FOLDERS_KEY, []);
+  },
+};
 
 async function togglePin(href: string) {
   const pinnedFolders = (await storage.getItem<string[]>(PINNED_FOLDERS_KEY)) ?? [];

@@ -34,25 +34,29 @@ export type CourseListPanel<Prepared = any> = {
 };
 
 export class CourseListPanelsRegistry {
-  private panels: CourseListPanel[] = [];
+  private panelsByName = new Map<string, { token: symbol; panel: CourseListPanel }>();
+
+  register<Prepared>(panel: CourseListPanel<Prepared>): () => void {
+    const token = Symbol(panel.name);
+    this.panelsByName.set(panel.name, { token, panel: panel as CourseListPanel });
+
+    return () => {
+      const current = this.panelsByName.get(panel.name);
+      if (!current) return;
+      if (current.token !== token) return;
+      this.panelsByName.delete(panel.name);
+    };
+  }
 
   add<Prepared>(panel: CourseListPanel<Prepared>) {
-    const existingIndex = this.panels.findIndex((p) => p.name === panel.name);
-    if (existingIndex >= 0) {
-      this.panels[existingIndex] = panel as CourseListPanel;
-      return;
-    }
-
-    this.panels.push(panel as CourseListPanel);
+    this.panelsByName.set(panel.name, { token: Symbol(panel.name), panel: panel as CourseListPanel });
   }
 
   list(): CourseListPanel[] {
-    return [...this.panels];
+    return [...this.panelsByName.values()].map((v) => v.panel);
   }
 
   clear() {
-    this.panels = [];
+    this.panelsByName.clear();
   }
 }
-
-export const courseListPanelsRegistry = new CourseListPanelsRegistry();

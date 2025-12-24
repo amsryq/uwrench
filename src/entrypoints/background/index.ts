@@ -1,6 +1,13 @@
-import { setupLoginRedirect } from "../../lib/features/login-redirect";
+import { FeatureManager } from '../../lib/runtime/feature-manager';
+import { loginRedirectFeature } from '../../lib/features/login-redirect';
 
 export default defineBackground(() => {
-  setupLoginRedirect();
+  const manager = new FeatureManager({
+    env: 'background',
+    patches: [],
+    features: [loginRedirectFeature],
+  });
+
+  void manager.start();
 });
 

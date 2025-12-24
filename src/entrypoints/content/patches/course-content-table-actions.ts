@@ -1,33 +1,71 @@
 import { waitForElement } from '../../../lib/utils/wait-for-element';
 import {
-  contentTableActionsRegistry,
   type ContentTableAction,
   type ContentTableActionApi,
   type ContentTableActionContext,
   type ContentTableUpdateContext,
 } from '../../../lib/registries/content-table-actions-registry';
+import type { ContentTableActionsRegistry } from '../../../lib/registries/content-table-actions-registry';
+import type { PatchDef } from '../../../lib/runtime/types';
 
 let tableObserver: MutationObserver | null = null;
+let lastTable: HTMLTableElement | null = null;
 
 const ACTIONS_HEADER_CLASS = 'uw-actions-header';
 const ACTIONS_CELL_CLASS = 'uw-actions-cell';
 const ACTION_BUTTON_ATTR = 'data-uw-action';
 
-export async function setupCourseContentTableActions() {
-  if (!window.location.href.includes('/contents/index/')) return;
+let refreshHandleImpl: (() => void | Promise<void>) | null = null;
 
-  const table = await waitForElement('#bs-table');
-  if (!table) return;
+export const courseContentTableActionsPatch: PatchDef<{ contentTableActions?: ContentTableActionsRegistry }> = {
+  id: 'courseContentTableActions',
+  registries: ['contentTableActions'],
+  setup: ({ registries }) => {
+    const registry = registries.contentTableActions;
+    if (!registry) {
+      return { cleanup: undefined, handle: undefined };
+    }
 
-  await init(table as HTMLTableElement);
-}
+    if (!window.location.href.includes('/contents/index/')) return { cleanup: undefined, handle: undefined };
 
-async function init(table: HTMLTableElement) {
+    void (async () => {
+      const table = await waitForElement('#bs-table');
+      if (!table) return;
+
+      lastTable = table as HTMLTableElement;
+      const refresh = await init(lastTable, registry);
+      refreshHandleImpl = async () => {
+        await refresh?.();
+      };
+    })();
+
+    return {
+      handle: {
+        id: 'courseContentTableActions',
+        refresh: async () => {
+          await refreshHandleImpl?.();
+        },
+      },
+      cleanup: () => {
+        tableObserver?.disconnect();
+        tableObserver = null;
+        refreshHandleImpl = null;
+
+        if (lastTable) {
+          removeActionsUi(lastTable);
+          lastTable = null;
+        }
+      },
+    };
+  },
+};
+
+async function init(table: HTMLTableElement, registry: ContentTableActionsRegistry) {
   const tbody = table.querySelector('tbody');
   if (!tbody) return;
 
   const refresh = async (resetIndices = false) => {
-    await updateTable(tbody, resetIndices, refresh);
+    await updateTable(tbody, resetIndices, refresh, registry);
   };
 
   await refresh(false);
@@ -39,15 +77,26 @@ async function init(table: HTMLTableElement) {
   });
 
   tableObserver.observe(tbody, { childList: true });
+
+  return async () => {
+    if (tableObserver) tableObserver.disconnect();
+    await refresh(false);
+    if (tableObserver) tableObserver.observe(tbody, { childList: true });
+  };
 }
 
 async function updateTable(
   tbody: Element,
   resetIndices: boolean,
   refresh: (resetIndices?: boolean) => Promise<void>,
+  registry: ContentTableActionsRegistry,
 ) {
-  const actions = contentTableActionsRegistry.list();
-  if (actions.length === 0) return;
+  const actions = registry.list();
+  if (actions.length === 0) {
+    const table = tbody.closest('table') as HTMLTableElement | null;
+    if (table) removeActionsUi(table);
+    return;
+  }
 
   const rows = Array.from(tbody.querySelectorAll('tr')) as HTMLTableRowElement[];
 
@@ -102,11 +151,25 @@ async function updateTable(
 
       renderActionButton(action, ctx, prepared, api);
     }
+
+    reconcileRowButtons(actionsCell, actions);
   });
 
   for (const action of actions) {
     const prepared = preparedByAction.get(action.name);
     await action.postUpdate?.(updateCtx, prepared, api);
+  }
+}
+
+function reconcileRowButtons(actionsCell: HTMLTableCellElement, actionsInOrder: ContentTableAction[]) {
+  const allowed = new Set(actionsInOrder.map((a) => a.name));
+  const buttons = Array.from(
+    actionsCell.querySelectorAll(`button[${ACTION_BUTTON_ATTR}]`),
+  ) as HTMLButtonElement[];
+
+  for (const btn of buttons) {
+    const name = btn.getAttribute(ACTION_BUTTON_ATTR) ?? '';
+    if (!allowed.has(name)) btn.remove();
   }
 }
 
@@ -147,6 +210,18 @@ function ensureActionsHeader(theadRow: HTMLTableRowElement) {
   th.className = `text-center ${ACTIONS_HEADER_CLASS}`;
   th.textContent = 'Actions';
   theadRow.appendChild(th);
+}
+
+function removeActionsUi(table: HTMLTableElement) {
+  const theadRow = table.querySelector('thead tr') as HTMLTableRowElement | null;
+  theadRow?.querySelectorAll(`th.${ACTIONS_HEADER_CLASS}`).forEach((th) => th.remove());
+
+  const rows = Array.from(table.querySelectorAll('tbody tr')) as HTMLTableRowElement[];
+  for (const row of rows) {
+    row.querySelectorAll(`td.${ACTIONS_CELL_CLASS}`).forEach((td) => td.remove());
+    delete row.dataset.pinned;
+    if (row.style.backgroundColor) row.style.backgroundColor = '';
+  }
 }
 
 function ensureRowBaseColumns(

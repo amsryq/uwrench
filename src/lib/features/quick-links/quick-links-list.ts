@@ -1,7 +1,7 @@
 import {
-  courseListPanelsRegistry,
   type CourseListPanelApi,
 } from '../../registries/course-list-panels-registry';
+import type { CourseListPanelsRegistry } from '../../registries/course-list-panels-registry';
 import {
   getQuickLinks,
   removeQuickLink,
@@ -13,13 +13,14 @@ const ROOT_ID = 'uw-quick-links';
 const MENU_ID = 'uw-quick-links-menu';
 const PANEL_NAME = 'course-list-quick-links';
 
-let menuWired = false;
 let menuApi: CourseListPanelApi | null = null;
 let openMenu: ((x: number, y: number, type: QuickLinkType, href: string) => void) | null = null;
 let closeMenu: (() => void) | null = null;
 
-export function registerQuickLinksPanel() {
-  courseListPanelsRegistry.add({
+let menuCleanup: (() => void) | null = null;
+
+export function setupQuickLinksPanel(registry: CourseListPanelsRegistry): () => void {
+  const dispose = registry.register({
     name: PANEL_NAME,
     prepare: async () => {
       const links = await getQuickLinks();
@@ -27,10 +28,20 @@ export function registerQuickLinksPanel() {
     },
     render: async (_updateCtx, courseContentLinks: QuickLink[], api) => {
       menuApi = api;
-      ensureContextMenuWired();
+      menuCleanup ??= ensureContextMenuWired();
       return renderQuickLinks(courseContentLinks);
     },
   });
+
+  return () => {
+    dispose();
+    document.getElementById(ROOT_ID)?.remove();
+    menuCleanup?.();
+    menuCleanup = null;
+    menuApi = null;
+    openMenu = null;
+    closeMenu = null;
+  };
 }
 
 async function renderQuickLinks(courseContentLinks: QuickLink[]): Promise<HTMLElement> {
@@ -181,26 +192,32 @@ function ensureContextMenuWired() {
     };
   }
 
-  if (menuWired) return;
-  menuWired = true;
-
   // Global close behaviors.
-  document.addEventListener(
-    'click',
-    (e) => {
-      if (!menu.classList.contains('show')) return;
-      if (e.target instanceof Node && menu.contains(e.target)) return;
-      closeMenu?.();
-    },
-    true,
-  );
+  const handleDocumentClick = (e: MouseEvent) => {
+    if (!menu.classList.contains('show')) return;
+    if (e.target instanceof Node && menu.contains(e.target)) return;
+    closeMenu?.();
+  };
 
-  document.addEventListener('keydown', (e) => {
+  const handleKeyDown = (e: KeyboardEvent) => {
     if (e.key === 'Escape') closeMenu?.();
-  });
+  };
 
-  window.addEventListener('scroll', () => closeMenu?.(), true);
-  window.addEventListener('resize', () => closeMenu?.());
+  const handleScroll = () => closeMenu?.();
+  const handleResize = () => closeMenu?.();
+
+  document.addEventListener('click', handleDocumentClick, true);
+  document.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('scroll', handleScroll, true);
+  window.addEventListener('resize', handleResize);
+
+  return () => {
+    document.removeEventListener('click', handleDocumentClick, true);
+    document.removeEventListener('keydown', handleKeyDown);
+    window.removeEventListener('scroll', handleScroll, true);
+    window.removeEventListener('resize', handleResize);
+    document.getElementById(MENU_ID)?.remove();
+  };
 }
 
 function ensureContextMenu(): HTMLDivElement {

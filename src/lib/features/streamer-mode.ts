@@ -1,7 +1,50 @@
-export function setupStreamerMode() {
-  setupPfpRemoval();
-  setupTeamInfoRemoval();
-}
+import type { FeatureDef } from '../runtime/types';
+
+type StreamerModeSubOptions = {
+  hideIdentity: unknown;
+  hideProfilePhoto: unknown;
+};
+
+export const streamerModeFeature: FeatureDef<unknown, StreamerModeSubOptions> = {
+  id: 'streamerMode',
+  title: 'Hide Identifying Info',
+  description: 'Hide identifying info for screen sharing.',
+  defaults: {
+    enabled: true,
+    options: {},
+  },
+  subFeatures: {
+    hideIdentity: {
+      id: 'hideIdentity',
+      title: 'Hide student identity',
+      defaults: { enabled: true, options: {} },
+    },
+    hideProfilePhoto: {
+      id: 'hideProfilePhoto',
+      title: 'Hide profile photo',
+      defaults: { enabled: true, options: {} },
+    },
+  },
+  setup: async (_ctx, state) => {
+    const cleanups: Array<() => void> = [];
+
+    if (state.sub.hideIdentity.enabled) {
+      const cleanup = setupTeamInfoRemoval();
+      if (cleanup) cleanups.push(cleanup);
+    }
+
+    if (state.sub.hideProfilePhoto.enabled) {
+      const cleanup = setupPfpRemoval();
+      if (cleanup) cleanups.push(cleanup);
+    }
+
+    return {
+      cleanup: async () => {
+        for (const fn of cleanups.splice(0).reverse()) fn();
+      },
+    };
+  },
+};
 
 export function setupTeamInfoRemoval() {
   const teamInfoStyle = document.createElement('style');
