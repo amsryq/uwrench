@@ -16,6 +16,19 @@ export async function getGlobalConfig() {
 }
 
 /**
+ * Features and patches for the gradebook attempts page (/gradebook/attempts/view/*).
+ */
+export async function getGradebookAttemptConfig() {
+  const [{ gradebookCopyFeature }] = await Promise.all([
+    import('../features/gradebook-copy'),
+  ]);
+
+  return {
+    features: [gradebookCopyFeature] as FeatureDef[],
+  };
+}
+
+/**
  * Features and patches for the course content page (/contents/index/*).
  */
 export async function getCourseContentConfig() {

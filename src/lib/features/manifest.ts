@@ -6,6 +6,7 @@ import { folderPinningFeature } from './folder-pinning';
 import { quickLinksFeature } from './quick-links';
 import { onlineClassListFeature } from './online-class-list';
 import { loginRedirectFeature } from './login-redirect';
+import { gradebookCopyFeature } from './gradebook-copy';
 
 export const allFeatures: Array<FeatureDef<any, any, any>> = [
   streamerModeFeature,
@@ -14,4 +15,5 @@ export const allFeatures: Array<FeatureDef<any, any, any>> = [
   quickLinksFeature,
   onlineClassListFeature,
   loginRedirectFeature,
+  gradebookCopyFeature,
 ];
