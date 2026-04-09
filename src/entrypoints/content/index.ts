@@ -1,15 +1,7 @@
-import { FeatureManager } from '../../lib/runtime/feature-manager';
 import { streamerModeFeature } from '../../lib/features/streamer-mode';
+import { defineFeatureContentScript } from './define-feature-content-script';
 
-export default defineContentScript({
+export default defineFeatureContentScript({
   matches: ['*://ufuture.uitm.edu.my/*'],
-  runAt: 'document_idle',
-  async main(ctx) {
-    const manager = new FeatureManager({
-      features: [{ feature: streamerModeFeature }],
-      contentScriptCtx: ctx,
-    });
-
-    void manager.start();
-  },
+  features: [{ feature: streamerModeFeature }],
 });

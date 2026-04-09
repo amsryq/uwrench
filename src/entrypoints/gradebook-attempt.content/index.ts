@@ -1,15 +1,7 @@
-import { FeatureManager } from '../../lib/runtime/feature-manager';
 import { gradebookCopyFeature } from '../../lib/features/gradebook-copy';
+import { defineFeatureContentScript } from '../content/define-feature-content-script';
 
-export default defineContentScript({
+export default defineFeatureContentScript({
   matches: ['*://ufuture.uitm.edu.my/gradebook/attempts/view/*/*'],
-  runAt: 'document_idle',
-  async main(ctx) {
-    const manager = new FeatureManager({
-      features: [{ feature: gradebookCopyFeature }],
-      contentScriptCtx: ctx,
-    });
-
-    void manager.start();
-  },
+  features: [{ feature: gradebookCopyFeature }],
 });
