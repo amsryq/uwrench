@@ -7,8 +7,6 @@ export const folderPinningFeature: FeatureDef = {
   title: 'Folder Pinning',
   description: 'Pin course content folders to the top.',
   defaults: { enabled: true, options: {} },
-  dependsOnPatches: ['courseContentTableActions'],
-  dependsOnRegistries: ['contentTableActions'],
   setup: async ({ registries }) => {
     const registry = registries.contentTableActions as ContentTableActionsRegistry | undefined;
     if (!registry) return {};

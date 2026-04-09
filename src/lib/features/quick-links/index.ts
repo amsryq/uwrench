@@ -16,8 +16,6 @@ export const quickLinksFeature: FeatureDef = {
   title: 'Quick Links',
   description: 'Save and access course content folders quickly.',
   defaults: { enabled: true, options: {} },
-  dependsOnPatches: ['courseContentTableActions', 'courseListPanels'],
-  dependsOnRegistries: ['contentTableActions', 'courseListPanels'],
   setup: async ({ registries }) => {
     const cleanups: Array<() => void> = [];
 

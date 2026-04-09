@@ -44,8 +44,6 @@ export const onlineClassListFeature: FeatureDef = {
   title: 'Online Classes (Panel)',
   description: 'Shows upcoming/active online classes on the course list page.',
   defaults: { enabled: true, options: {} },
-  dependsOnPatches: ['courseListPanels'],
-  dependsOnRegistries: ['courseListPanels'],
   setup: async ({ registries }) => {
     const registry = registries.courseListPanels as CourseListPanelsRegistry | undefined;
     if (!registry) return {};

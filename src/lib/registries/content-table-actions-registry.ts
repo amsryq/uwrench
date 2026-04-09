@@ -56,28 +56,45 @@ export type ContentTableAction<Prepared = any> = {
 
 export class ContentTableActionsRegistry {
   private actionsByName = new Map<string, { token: symbol; action: ContentTableAction }>();
+  private listeners = new Set<() => void>();
+
+  private emit() {
+    for (const listener of this.listeners) listener();
+  }
 
   register<Prepared>(action: ContentTableAction<Prepared>): () => void {
     const token = Symbol(action.name);
     this.actionsByName.set(action.name, { token, action: action as ContentTableAction });
+    this.emit();
 
     return () => {
       const current = this.actionsByName.get(action.name);
       if (!current) return;
       if (current.token !== token) return;
       this.actionsByName.delete(action.name);
+      this.emit();
     };
   }
 
   add<Prepared>(action: ContentTableAction<Prepared>) {
     this.actionsByName.set(action.name, { token: Symbol(action.name), action: action as ContentTableAction });
+    this.emit();
   }
 
   list(): ContentTableAction[] {
     return [...this.actionsByName.values()].map((v) => v.action);
   }
 
+  onChange(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
   clear() {
+    if (this.actionsByName.size === 0) return;
     this.actionsByName.clear();
+    this.emit();
   }
 }

@@ -6,82 +6,79 @@ import {
   type ContentTableUpdateContext,
 } from '../../../lib/registries/content-table-actions-registry';
 import type { ContentTableActionsRegistry } from '../../../lib/registries/content-table-actions-registry';
-import type { PatchDef } from '../../../lib/runtime/types';
-
-let tableObserver: MutationObserver | null = null;
-let lastTable: HTMLTableElement | null = null;
 
 const ACTIONS_HEADER_CLASS = 'uw-actions-header';
 const ACTIONS_CELL_CLASS = 'uw-actions-cell';
 const ACTION_BUTTON_ATTR = 'data-uw-action';
 
-let refreshHandleImpl: (() => void | Promise<void>) | null = null;
+export function mountCourseContentTableActions(registry: ContentTableActionsRegistry): () => void {
+  if (!window.location.href.includes('/contents/index/')) return () => {};
 
-export const courseContentTableActionsPatch: PatchDef<{ contentTableActions?: ContentTableActionsRegistry }> = {
-  id: 'courseContentTableActions',
-  registries: ['contentTableActions'],
-  setup: ({ registries }) => {
-    const registry = registries.contentTableActions;
-    if (!registry) {
-      return { cleanup: undefined, handle: undefined };
-    }
+  let tableObserver: MutationObserver | null = null;
+  let lastTable: HTMLTableElement | null = null;
+  let refreshHandleImpl: (() => void | Promise<void>) | null = null;
+  let stopped = false;
 
-    if (!window.location.href.includes('/contents/index/')) return { cleanup: undefined, handle: undefined };
+  const stopWatchingRegistry = registry.onChange(() => {
+    void refreshHandleImpl?.();
+  });
 
-    void (async () => {
-      const table = await waitForElement('#bs-table');
-      if (!table) return;
+  void (async () => {
+    const table = await waitForElement('#bs-table');
+    if (stopped || !table) return;
 
-      lastTable = table as HTMLTableElement;
-      const refresh = await init(lastTable, registry);
-      refreshHandleImpl = async () => {
-        await refresh?.();
-      };
-    })();
-
-    return {
-      handle: {
-        id: 'courseContentTableActions',
-        refresh: async () => {
-          await refreshHandleImpl?.();
-        },
-      },
-      cleanup: () => {
-        tableObserver?.disconnect();
-        tableObserver = null;
-        refreshHandleImpl = null;
-
-        if (lastTable) {
-          removeActionsUi(lastTable);
-          lastTable = null;
-        }
-      },
+    lastTable = table as HTMLTableElement;
+    const refresh = await init(lastTable, registry, () => tableObserver, (next) => {
+      tableObserver = next;
+    });
+    refreshHandleImpl = async () => {
+      await refresh?.();
     };
-  },
-};
+  })();
 
-async function init(table: HTMLTableElement, registry: ContentTableActionsRegistry) {
+  return () => {
+    stopped = true;
+    stopWatchingRegistry();
+    tableObserver?.disconnect();
+    tableObserver = null;
+    refreshHandleImpl = null;
+
+    if (lastTable) {
+      removeActionsUi(lastTable);
+      lastTable = null;
+    }
+  };
+}
+
+async function init(
+  table: HTMLTableElement,
+  registry: ContentTableActionsRegistry,
+  getObserver: () => MutationObserver | null,
+  setObserver: (observer: MutationObserver | null) => void,
+) {
   const tbody = table.querySelector('tbody');
   if (!tbody) return;
 
   const refresh = async (resetIndices = false) => {
-    await updateTable(tbody, resetIndices, refresh, registry);
+    await updateTable(tbody, resetIndices, refresh, registry, getObserver);
   };
 
   await refresh(false);
 
-  tableObserver = new MutationObserver(async () => {
-    if (tableObserver) tableObserver.disconnect();
+  const observer = new MutationObserver(async () => {
+    if (getObserver()) getObserver()?.disconnect();
     await refresh(true);
-    if (tableObserver) tableObserver.observe(tbody, { childList: true });
+    if (getObserver()) getObserver()?.observe(tbody, { childList: true });
   });
 
-  tableObserver.observe(tbody, { childList: true });
+  setObserver(observer);
+  observer.observe(tbody, { childList: true });
 
   return async () => {
-    if (tableObserver) tableObserver.disconnect();
+    const currentObserver = getObserver();
+    if (currentObserver) currentObserver.disconnect();
     await refresh(false);
-    if (tableObserver) tableObserver.observe(tbody, { childList: true });
+    if (currentObserver) currentObserver.observe(tbody, { childList: true });
   };
 }
 
@@ -90,6 +87,7 @@ async function updateTable(
   resetIndices: boolean,
   refresh: (resetIndices?: boolean) => Promise<void>,
   registry: ContentTableActionsRegistry,
+  getObserver: () => MutationObserver | null,
 ) {
   const actions = registry.list();
   if (actions.length === 0) {
@@ -108,9 +106,10 @@ async function updateTable(
 
   const api: ContentTableActionApi = {
     refresh: async () => {
-      if (tableObserver) tableObserver.disconnect();
+      const observer = getObserver();
+      if (observer) observer.disconnect();
       await refresh(false);
-      if (tableObserver) tableObserver.observe(tbody, { childList: true });
+      if (observer) observer.observe(tbody, { childList: true });
     },
   };
 
@@ -214,11 +213,15 @@ function ensureActionsHeader(theadRow: HTMLTableRowElement) {
 
 function removeActionsUi(table: HTMLTableElement) {
   const theadRow = table.querySelector('thead tr') as HTMLTableRowElement | null;
-  theadRow?.querySelectorAll(`th.${ACTIONS_HEADER_CLASS}`).forEach((th) => th.remove());
+  theadRow?.querySelectorAll(`th.${ACTIONS_HEADER_CLASS}`).forEach((th) => {
+    th.remove();
+  });
 
   const rows = Array.from(table.querySelectorAll('tbody tr')) as HTMLTableRowElement[];
   for (const row of rows) {
-    row.querySelectorAll(`td.${ACTIONS_CELL_CLASS}`).forEach((td) => td.remove());
+    row.querySelectorAll(`td.${ACTIONS_CELL_CLASS}`).forEach((td) => {
+      td.remove();
+    });
     delete row.dataset.pinned;
     if (row.style.backgroundColor) row.style.backgroundColor = '';
   }

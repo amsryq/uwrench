@@ -1,29 +1,11 @@
 import type { SettingsEnvelope, StoredFeatureState } from '../settings/settings-types';
 import { loadSettings, watchSettings } from '../settings/settings-store';
-import type {
-  ContentRuntimeContext,
-  FeatureDef,
-  FeatureState,
-  PatchDef,
-  PatchHandle,
-  PatchId,
-  RegistryId,
-  RuntimeEnv,
-} from './types';
-import { createRegistries, ensureRegistry, type RuntimeRegistries } from './registries';
-import { createContentPatchLoader } from './patch-loader';
+import type { Cleanup, ContentRuntimeContext, FeatureDef, FeatureState } from './types';
 
 type ActiveFeature = {
   cleanup?: () => void | Promise<void>;
   enabled: boolean;
-  restartRequired: boolean;
   stateSig?: string;
-};
-
-type ActivePatch = {
-  cleanup?: () => void | Promise<void>;
-  handle?: PatchHandle;
-  refCount: number;
 };
 
 function toBoolean(value: unknown, fallback: boolean): boolean {
@@ -87,44 +69,30 @@ function resolveFeatureState<TOptions, TSub extends Record<string, unknown>>(
   };
 }
 
-function getRegistryIdsFromFeature(def: FeatureDef<any, any>): RegistryId[] {
-  return def.dependsOnRegistries ?? [];
-}
-
-function getPatchIdsFromFeature(def: FeatureDef<any, any>): PatchId[] {
-  return def.dependsOnPatches ?? [];
-}
-
-function getRegistryIdsFromPatch(def: PatchDef<any>): RegistryId[] {
-  return def.registries ?? [];
-}
+export type FeatureBinding<TContext = any> = {
+  feature: FeatureDef<any, any, TContext>;
+  context?: TContext;
+};
 
 export type FeatureManagerConfig = {
-  env: RuntimeEnv;
-  features: Array<FeatureDef<any, any, any>>;
-  patchLoader?: (patchId: PatchId) => Promise<PatchDef<any> | undefined>;
+  features: Array<FeatureBinding<any>>;
   contentScriptCtx?: ContentRuntimeContext;
+  extraCleanups?: Cleanup[];
 };
 
 export class FeatureManager {
-  private readonly env: RuntimeEnv;
-  private readonly featuresById: Map<string, FeatureDef<any, any, any>>;
-  private readonly patchLoader?: (patchId: PatchId) => Promise<PatchDef<any> | undefined>;
+  private readonly featuresById: Map<string, FeatureBinding<any>>;
   private readonly contentScriptCtx?: ContentRuntimeContext;
-
-  private readonly registries: RuntimeRegistries = createRegistries();
-  private readonly patchesById: Map<PatchId, PatchDef<any>> = new Map();
-  private readonly activePatches: Map<PatchId, ActivePatch> = new Map();
+  private readonly extraCleanups: Cleanup[];
   private readonly activeFeatures: Map<string, ActiveFeature> = new Map();
 
   private settings: SettingsEnvelope | null = null;
   private stopWatching: (() => void) | null = null;
 
   constructor(config: FeatureManagerConfig) {
-    this.env = config.env;
-    this.featuresById = new Map(config.features.map((f) => [f.id, f]));
-    this.patchLoader = config.patchLoader ?? (this.env === "content" ? createContentPatchLoader() : undefined);
+    this.featuresById = new Map(config.features.map((binding) => [binding.feature.id, binding]));
     this.contentScriptCtx = config.contentScriptCtx;
+    this.extraCleanups = [...(config.extraCleanups ?? [])];
   }
 
   async start(): Promise<void> {
@@ -154,125 +122,29 @@ export class FeatureManager {
     }
     this.activeFeatures.clear();
 
-    for (const active of this.activePatches.values()) {
-      await active.cleanup?.();
+    for (const cleanup of [...this.extraCleanups].reverse()) {
+      await cleanup?.();
     }
-    this.activePatches.clear();
   }
 
   private async applyAll(): Promise<void> {
     const settings = this.settings;
     if (!settings) return;
 
-    for (const def of this.featuresById.values()) {
-      const stored = settings.features[def.id];
-      const resolved = resolveFeatureState(def as any, stored);
-      await this.applyFeature(def, resolved);
+    for (const binding of this.featuresById.values()) {
+      const stored = settings.features[binding.feature.id];
+      const resolved = resolveFeatureState(binding.feature as any, stored);
+      await this.applyFeature(binding, resolved);
     }
   }
-
-  private async ensurePatchesForFeature(def: FeatureDef<any, any, any>): Promise<Record<PatchId, PatchHandle>> {
-    const patchIds = getPatchIdsFromFeature(def);
-    const patchHandles: Partial<Record<PatchId, PatchHandle>> = {};
-
-    for (const patchId of patchIds) {
-      let patch = this.patchesById.get(patchId);
-      if (!patch && this.patchLoader) {
-        patch = await this.patchLoader(patchId);
-        if (patch) this.patchesById.set(patchId, patch);
-      }
-      if (!patch) throw new Error(`Unknown patch dependency: ${patchId} (feature: ${def.id})`);
-
-      const active = this.activePatches.get(patchId);
-      if (active) {
-        active.refCount += 1;
-        if (active.handle) patchHandles[patchId] = active.handle;
-        continue;
-      }
-
-      // Ensure registries needed by patch exist.
-      for (const regId of getRegistryIdsFromPatch(patch)) {
-        if (regId === 'contentTableActions') ensureRegistry(this.registries, 'contentTableActions');
-        if (regId === 'courseListPanels') ensureRegistry(this.registries, 'courseListPanels');
-      }
-
-      const result = patch.setup({ env: this.env, registries: this.registries as any });
-      this.activePatches.set(patchId, {
-        cleanup: result.cleanup,
-        handle: result.handle,
-        refCount: 1,
-      });
-      if (result.handle) patchHandles[patchId] = result.handle;
-    }
-
-    return patchHandles as Record<PatchId, PatchHandle>;
-  }
-
-  private getPatchHandlesForFeature(def: FeatureDef<any, any, any>): Record<PatchId, PatchHandle> {
-    const patchIds = getPatchIdsFromFeature(def);
-    const patchHandles: Partial<Record<PatchId, PatchHandle>> = {};
-
-    for (const patchId of patchIds) {
-      const active = this.activePatches.get(patchId);
-      if (active?.handle) patchHandles[patchId] = active.handle;
-    }
-
-    return patchHandles as Record<PatchId, PatchHandle>;
-  }
-
-  private async releasePatchesForFeature(def: FeatureDef<any, any, any>): Promise<void> {
-    const patchIds = getPatchIdsFromFeature(def);
-
-    for (const patchId of patchIds) {
-      const active = this.activePatches.get(patchId);
-      if (!active) continue;
-      active.refCount -= 1;
-      if (active.refCount > 0) continue;
-
-      this.activePatches.delete(patchId);
-      await active.cleanup?.();
-    }
-  }
-
-  private async applyFeature(def: FeatureDef<any, any, any>, state: FeatureState<any, any>): Promise<void> {
-    const prev = this.activeFeatures.get(def.id);
-    const restartRequired = Boolean(def.restartRequired);
+  private async applyFeature(binding: FeatureBinding<any>, state: FeatureState<any, any>): Promise<void> {
+    const { feature, context } = binding;
+    const prev = this.activeFeatures.get(feature.id);
     const nextSig = stableStringify(state);
 
-    if (restartRequired) {
-      // If restart required, only apply once at startup (if enabled) and ignore live changes.
-      if (!prev) {
-        if (state.enabled) {
-          const patches = await this.ensurePatchesForFeature(def);
-          const ctx = {
-            env: this.env,
-            registries: this.pickRegistriesForFeature(def),
-            patches,
-            contentScriptCtx: this.contentScriptCtx,
-          };
-          const result = await def.setup(ctx as any, state);
-          this.activeFeatures.set(def.id, {
-            enabled: true,
-            cleanup: result.cleanup,
-            restartRequired: true,
-            stateSig: nextSig,
-          });
-        } else {
-          this.activeFeatures.set(def.id, {
-            enabled: false,
-            cleanup: undefined,
-            restartRequired: true,
-            stateSig: nextSig,
-          });
-        }
-      }
-      return;
-    }
-
     if (!prev && !state.enabled) {
-      this.activeFeatures.set(def.id, {
+      this.activeFeatures.set(feature.id, {
         enabled: false,
-        restartRequired,
         cleanup: undefined,
         stateSig: nextSig,
       });
@@ -284,52 +156,22 @@ export class FeatureManager {
       if (prev?.enabled) {
         if (prev.stateSig === nextSig) return;
 
-        // Reconfigure by re-running setup.
         await prev.cleanup?.();
+        const result = await feature.setup({ ...(context ?? {}), contentScriptCtx: this.contentScriptCtx }, state);
 
-        const patches = this.getPatchHandlesForFeature(def);
-        const ctx = {
-          env: this.env,
-          registries: this.pickRegistriesForFeature(def),
-          patches,
-          contentScriptCtx: this.contentScriptCtx,
-        };
-        const result = await def.setup(ctx as any, state);
-
-        for (const patchId of getPatchIdsFromFeature(def)) {
-          const handle = this.activePatches.get(patchId)?.handle;
-          await handle?.refresh?.();
-        }
-
-        this.activeFeatures.set(def.id, {
+        this.activeFeatures.set(feature.id, {
           enabled: true,
           cleanup: result.cleanup,
-          restartRequired,
           stateSig: nextSig,
         });
         return;
       }
 
-      const patches = await this.ensurePatchesForFeature(def);
-      const ctx = {
-        env: this.env,
-        registries: this.pickRegistriesForFeature(def),
-        patches,
-        contentScriptCtx: this.contentScriptCtx,
-      };
+      const result = await feature.setup({ ...(context ?? {}), contentScriptCtx: this.contentScriptCtx }, state);
 
-      const result = await def.setup(ctx as any, state);
-
-      // Ask dependent patches to refresh after new registrations.
-      for (const patchId of getPatchIdsFromFeature(def)) {
-        const handle = this.activePatches.get(patchId)?.handle;
-        await handle?.refresh?.();
-      }
-
-      this.activeFeatures.set(def.id, {
+      this.activeFeatures.set(feature.id, {
         enabled: true,
         cleanup: result.cleanup,
-        restartRequired,
         stateSig: nextSig,
       });
       return;
@@ -338,36 +180,12 @@ export class FeatureManager {
     // Disabled -> cleanup
     if (prev?.enabled) {
       await prev.cleanup?.();
-      await this.releasePatchesForFeature(def);
-
-      // Ask dependent patches to refresh after unregistration.
-      for (const patchId of getPatchIdsFromFeature(def)) {
-        const handle = this.activePatches.get(patchId)?.handle;
-        await handle?.refresh?.();
-      }
     }
 
-    this.activeFeatures.set(def.id, {
+    this.activeFeatures.set(feature.id, {
       enabled: false,
       cleanup: undefined,
-      restartRequired,
       stateSig: nextSig,
     });
-  }
-
-  private pickRegistriesForFeature(def: FeatureDef<any, any, any>): RuntimeRegistries {
-    const registryIds = getRegistryIdsFromFeature(def);
-    const picked: RuntimeRegistries = {};
-
-    for (const id of registryIds) {
-      if (id === 'contentTableActions') {
-        picked.contentTableActions = ensureRegistry(this.registries, 'contentTableActions');
-      }
-      if (id === 'courseListPanels') {
-        picked.courseListPanels = ensureRegistry(this.registries, 'courseListPanels');
-      }
-    }
-
-    return picked;
   }
 }

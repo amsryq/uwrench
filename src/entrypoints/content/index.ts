@@ -1,15 +1,12 @@
 import { FeatureManager } from '../../lib/runtime/feature-manager';
-import { getGlobalConfig } from '../../lib/runtime/feature-configs';
+import { streamerModeFeature } from '../../lib/features/streamer-mode';
 
 export default defineContentScript({
   matches: ['*://ufuture.uitm.edu.my/*'],
   runAt: 'document_idle',
   async main(ctx) {
-    const config = await getGlobalConfig();
-
     const manager = new FeatureManager({
-      env: 'content',
-      features: config.features,
+      features: [{ feature: streamerModeFeature }],
       contentScriptCtx: ctx,
     });
 

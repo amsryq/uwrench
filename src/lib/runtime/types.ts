@@ -1,37 +1,8 @@
-import type { RegistryId, RuntimeRegistries } from './registries';
-
-export type { RegistryId, RuntimeRegistries } from './registries';
-
 export type Cleanup = () => void | Promise<void>;
 
 export type ContentRuntimeContext = {
   isInvalidated?: boolean;
   onInvalidated?: (cleanup: Cleanup) => void;
-};
-
-export type RuntimeEnv = 'content' | 'background' | 'popup';
-
-export type PatchId = 'courseContentTableActions' | 'courseListPanels';
-
-export type PatchHandle = {
-  id: PatchId;
-  refresh?: () => void | Promise<void>;
-};
-
-export type PatchContext<Registries extends Partial<RuntimeRegistries> = Partial<RuntimeRegistries>> = {
-  env: RuntimeEnv;
-  registries: Registries;
-};
-
-export type PatchSetupResult = {
-  handle?: PatchHandle;
-  cleanup?: Cleanup;
-};
-
-export type PatchDef<Registries extends Partial<RuntimeRegistries> = Partial<RuntimeRegistries>> = {
-  id: PatchId;
-  registries?: RegistryId[];
-  setup: (ctx: PatchContext<Registries>) => PatchSetupResult;
 };
 
 export type SubFeatureState<TOptions = unknown> = {
@@ -51,13 +22,7 @@ export type SubFeatureDef<TOptions = unknown> = {
   defaults: { enabled: boolean; options: TOptions };
 };
 
-export type FeatureContext<
-  Registries extends Partial<RuntimeRegistries> = Partial<RuntimeRegistries>,
-  Patches extends Partial<Record<PatchId, PatchHandle>> = Partial<Record<PatchId, PatchHandle>>,
-> = {
-  env: RuntimeEnv;
-  registries: Registries;
-  patches: Patches;
+export type FeatureContext<TContext = any> = TContext & {
   contentScriptCtx?: ContentRuntimeContext;
 };
 
@@ -68,7 +33,7 @@ export type FeatureSetupResult = {
 export type FeatureDef<
   TOptions = unknown,
   TSub extends Record<string, unknown> = Record<string, unknown>,
-  Registries extends Partial<RuntimeRegistries> = Partial<RuntimeRegistries>,
+  TContext = any,
 > = {
   id: string;
   title: string;
@@ -78,11 +43,8 @@ export type FeatureDef<
   defaults: { enabled: boolean; options: TOptions };
   subFeatures?: { [K in keyof TSub]: SubFeatureDef<TSub[K]> };
 
-  dependsOnPatches?: PatchId[];
-  dependsOnRegistries?: RegistryId[];
-
   setup: (
-    ctx: FeatureContext<Registries>,
+    ctx: FeatureContext<TContext>,
     state: FeatureState<TOptions, TSub>,
   ) => FeatureSetupResult | Promise<FeatureSetupResult>;
 
