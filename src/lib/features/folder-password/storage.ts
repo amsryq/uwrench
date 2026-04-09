@@ -1,4 +1,4 @@
-import { folderPasswordsItem } from '../../storage/items';
+import { folderPasswordsItem } from "../../storage/items";
 
 export type FolderPasswords = Record<string, string>;
 

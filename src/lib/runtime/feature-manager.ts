@@ -1,6 +1,6 @@
-import type { SettingsEnvelope, StoredFeatureState } from '../settings/settings-types';
-import { loadSettings, watchSettings } from '../settings/settings-store';
-import type { Cleanup, ContentRuntimeContext, FeatureDef, FeatureState } from './types';
+import type { SettingsEnvelope, StoredFeatureState } from "../settings/settings-types";
+import { loadSettings, watchSettings } from "../settings/settings-store";
+import type { Cleanup, ContentRuntimeContext, FeatureDef, FeatureState } from "./types";
 
 type ActiveFeature = {
   cleanup?: () => void | Promise<void>;
@@ -9,19 +9,19 @@ type ActiveFeature = {
 };
 
 function toBoolean(value: unknown, fallback: boolean): boolean {
-  return typeof value === 'boolean' ? value : fallback;
+  return typeof value === "boolean" ? value : fallback;
 }
 
 function safeObject(value: unknown): Record<string, unknown> {
-  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : {};
 }
 
 function stableStringify(value: unknown): string {
   const seen = new WeakSet<object>();
 
   const normalize = (v: any): any => {
-    if (v === null || typeof v !== 'object') return v;
-    if (seen.has(v)) return '[Circular]';
+    if (v === null || typeof v !== "object") return v;
+    if (seen.has(v)) return "[Circular]";
     seen.add(v);
 
     if (Array.isArray(v)) return v.map(normalize);
@@ -137,7 +137,10 @@ export class FeatureManager {
       await this.applyFeature(binding, resolved);
     }
   }
-  private async applyFeature(binding: FeatureBinding<any>, state: FeatureState<any, any>): Promise<void> {
+  private async applyFeature(
+    binding: FeatureBinding<any>,
+    state: FeatureState<any, any>,
+  ): Promise<void> {
     const { feature, context } = binding;
     const prev = this.activeFeatures.get(feature.id);
     const nextSig = stableStringify(state);
@@ -157,7 +160,10 @@ export class FeatureManager {
         if (prev.stateSig === nextSig) return;
 
         await prev.cleanup?.();
-        const result = await feature.setup({ ...(context ?? {}), contentScriptCtx: this.contentScriptCtx }, state);
+        const result = await feature.setup(
+          { ...context, contentScriptCtx: this.contentScriptCtx },
+          state,
+        );
 
         this.activeFeatures.set(feature.id, {
           enabled: true,
@@ -167,7 +173,10 @@ export class FeatureManager {
         return;
       }
 
-      const result = await feature.setup({ ...(context ?? {}), contentScriptCtx: this.contentScriptCtx }, state);
+      const result = await feature.setup(
+        { ...context, contentScriptCtx: this.contentScriptCtx },
+        state,
+      );
 
       this.activeFeatures.set(feature.id, {
         enabled: true,

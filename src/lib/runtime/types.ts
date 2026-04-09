@@ -10,7 +10,10 @@ export type SubFeatureState<TOptions = unknown> = {
   options: TOptions;
 };
 
-export type FeatureState<TOptions = unknown, TSub extends Record<string, unknown> = Record<string, unknown>> = {
+export type FeatureState<
+  TOptions = unknown,
+  TSub extends Record<string, unknown> = Record<string, unknown>,
+> = {
   enabled: boolean;
   options: TOptions;
   sub: { [K in keyof TSub]: SubFeatureState<TSub[K]> };

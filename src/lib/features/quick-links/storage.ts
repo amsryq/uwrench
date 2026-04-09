@@ -1,6 +1,6 @@
-import { quickLinksItem } from '../../storage/items';
+import { quickLinksItem } from "../../storage/items";
 
-export type QuickLinkType = 'course_content' | (string & {});
+export type QuickLinkType = "course_content" | (string & {});
 
 export type QuickLink = {
   type: QuickLinkType;
@@ -37,10 +37,6 @@ export async function removeQuickLink(type: QuickLinkType, href: string): Promis
   await quickLinksItem.setValue(filtered);
 }
 
-export function hasQuickLink(
-  links: QuickLink[],
-  type: QuickLinkType,
-  href: string,
-): boolean {
+export function hasQuickLink(links: QuickLink[], type: QuickLinkType, href: string): boolean {
   return links.some((l) => l.type === type && l.href === href);
 }

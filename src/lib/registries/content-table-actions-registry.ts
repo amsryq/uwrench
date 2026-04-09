@@ -77,7 +77,10 @@ export class ContentTableActionsRegistry {
   }
 
   add<Prepared>(action: ContentTableAction<Prepared>) {
-    this.actionsByName.set(action.name, { token: Symbol(action.name), action: action as ContentTableAction });
+    this.actionsByName.set(action.name, {
+      token: Symbol(action.name),
+      action: action as ContentTableAction,
+    });
     this.emit();
   }
 

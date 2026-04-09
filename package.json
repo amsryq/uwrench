@@ -1,8 +1,8 @@
 {
   "name": "uwrench",
-  "description": "Fix UX issues on UiTM UFuture portal",
-  "private": true,
   "version": "0.1.0",
+  "private": true,
+  "description": "Fix UX issues on UiTM UFuture portal",
   "type": "module",
   "scripts": {
     "dev": "wxt",
@@ -11,19 +11,25 @@
     "build:firefox": "wxt build -b firefox",
     "zip": "wxt zip",
     "zip:firefox": "wxt zip -b firefox",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint --fix .",
+    "fmt": "oxfmt --write .",
+    "fmt:check": "oxfmt --check .",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "postinstall": "wxt prepare"
+  },
+  "dependencies": {
+    "webext-bridge": "^6.0.1"
   },
   "devDependencies": {
     "@tsconfig/svelte": "^5.0.8",
     "@wxt-dev/module-svelte": "^2.0.5",
+    "oxfmt": "^0.44.0",
+    "oxlint": "^1.59.0",
     "svelte": "^5.55.2",
     "svelte-check": "^4.4.6",
     "tslib": "^2.8.1",
     "typescript": "^5.9.3",
     "wxt": "^0.20.20"
-  },
-  "dependencies": {
-    "webext-bridge": "^6.0.1"
   }
 }

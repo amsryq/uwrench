@@ -14,8 +14,8 @@ uwrench is a browser extension for [UiTM UFUTURE](ufuture.uitm.edu.my).
 
 It adds small quality-of-life improvements directly to the pages students already use, with per-feature toggles in the extension popup.
 
-
 ## Features
+
 - **Login Redirect**\
   Restores the page you were trying to open after UFuture sends you through the login flow.
 

@@ -56,7 +56,10 @@ export class CourseListPanelsRegistry {
   }
 
   add<Prepared>(panel: CourseListPanel<Prepared>) {
-    this.panelsByName.set(panel.name, { token: Symbol(panel.name), panel: panel as CourseListPanel });
+    this.panelsByName.set(panel.name, {
+      token: Symbol(panel.name),
+      panel: panel as CourseListPanel,
+    });
     this.emit();
   }
 

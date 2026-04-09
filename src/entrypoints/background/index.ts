@@ -1,4 +1,4 @@
-import { registerLoginRedirectListener } from '../../lib/features/login-redirect';
+import { registerLoginRedirectListener } from "../../lib/features/login-redirect";
 
 export default defineBackground(() => {
   registerLoginRedirectListener();

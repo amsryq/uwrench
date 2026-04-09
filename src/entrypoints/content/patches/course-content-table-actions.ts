@@ -1,18 +1,18 @@
-import { waitForElement } from '../../../lib/utils/wait-for-element';
+import { waitForElement } from "../../../lib/utils/wait-for-element";
 import {
   type ContentTableAction,
   type ContentTableActionApi,
   type ContentTableActionContext,
   type ContentTableUpdateContext,
-} from '../../../lib/registries/content-table-actions-registry';
-import type { ContentTableActionsRegistry } from '../../../lib/registries/content-table-actions-registry';
+} from "../../../lib/registries/content-table-actions-registry";
+import type { ContentTableActionsRegistry } from "../../../lib/registries/content-table-actions-registry";
 
-const ACTIONS_HEADER_CLASS = 'uw-actions-header';
-const ACTIONS_CELL_CLASS = 'uw-actions-cell';
-const ACTION_BUTTON_ATTR = 'data-uw-action';
+const ACTIONS_HEADER_CLASS = "uw-actions-header";
+const ACTIONS_CELL_CLASS = "uw-actions-cell";
+const ACTION_BUTTON_ATTR = "data-uw-action";
 
 export function mountCourseContentTableActions(registry: ContentTableActionsRegistry): () => void {
-  if (!window.location.href.includes('/contents/index/')) return () => {};
+  if (!window.location.href.includes("/contents/index/")) return () => {};
 
   let tableObserver: MutationObserver | null = null;
   let lastTable: HTMLTableElement | null = null;
@@ -24,13 +24,18 @@ export function mountCourseContentTableActions(registry: ContentTableActionsRegi
   });
 
   void (async () => {
-    const table = await waitForElement('#bs-table');
+    const table = await waitForElement("#bs-table");
     if (stopped || !table) return;
 
     lastTable = table as HTMLTableElement;
-    const refresh = await init(lastTable, registry, () => tableObserver, (next) => {
-      tableObserver = next;
-    });
+    const refresh = await init(
+      lastTable,
+      registry,
+      () => tableObserver,
+      (next) => {
+        tableObserver = next;
+      },
+    );
     refreshHandleImpl = async () => {
       await refresh?.();
     };
@@ -56,7 +61,7 @@ async function init(
   getObserver: () => MutationObserver | null,
   setObserver: (observer: MutationObserver | null) => void,
 ) {
-  const tbody = table.querySelector('tbody');
+  const tbody = table.querySelector("tbody");
   if (!tbody) return;
 
   const refresh = async (resetIndices = false) => {
@@ -91,12 +96,12 @@ async function updateTable(
 ) {
   const actions = registry.list();
   if (actions.length === 0) {
-    const table = tbody.closest('table') as HTMLTableElement | null;
+    const table = tbody.closest("table") as HTMLTableElement | null;
     if (table) removeActionsUi(table);
     return;
   }
 
-  const rows = Array.from(tbody.querySelectorAll('tr')) as HTMLTableRowElement[];
+  const rows = Array.from(tbody.querySelectorAll("tr")) as HTMLTableRowElement[];
 
   const updateCtx: ContentTableUpdateContext = {
     tbody,
@@ -115,10 +120,10 @@ async function updateTable(
 
   const preparedByAction = await prepareActions(actions, updateCtx);
 
-  let maxBaseCols = getMaxBaseColumns(rows, actions);
+  let maxBaseCols = getMaxBaseColumns(rows);
 
-  const table = tbody.closest('table');
-  const theadRow = table?.querySelector('thead tr') as HTMLTableRowElement | null;
+  const table = tbody.closest("table");
+  const theadRow = table?.querySelector("thead tr") as HTMLTableRowElement | null;
   if (theadRow) {
     ensureActionsHeader(theadRow);
     maxBaseCols = theadRow.cells.length - 1;
@@ -131,8 +136,8 @@ async function updateTable(
     const actionsCell = ensureActionsCell(row);
     ensureRowBaseColumns(row, maxBaseCols, actionsCell);
 
-    const link = row.querySelector('td a') as HTMLAnchorElement | null;
-    const href = link?.getAttribute('href') ?? '';
+    const link = row.querySelector("td a") as HTMLAnchorElement | null;
+    const href = link?.getAttribute("href") ?? "";
     if (!link || !href) return;
 
     for (const action of actions) {
@@ -160,22 +165,22 @@ async function updateTable(
   }
 }
 
-function reconcileRowButtons(actionsCell: HTMLTableCellElement, actionsInOrder: ContentTableAction[]) {
+function reconcileRowButtons(
+  actionsCell: HTMLTableCellElement,
+  actionsInOrder: ContentTableAction[],
+) {
   const allowed = new Set(actionsInOrder.map((a) => a.name));
   const buttons = Array.from(
     actionsCell.querySelectorAll(`button[${ACTION_BUTTON_ATTR}]`),
   ) as HTMLButtonElement[];
 
   for (const btn of buttons) {
-    const name = btn.getAttribute(ACTION_BUTTON_ATTR) ?? '';
+    const name = btn.getAttribute(ACTION_BUTTON_ATTR) ?? "";
     if (!allowed.has(name)) btn.remove();
   }
 }
 
-async function prepareActions(
-  actions: ContentTableAction[],
-  updateCtx: ContentTableUpdateContext,
-) {
+async function prepareActions(actions: ContentTableAction[], updateCtx: ContentTableUpdateContext) {
   const preparedByName = new Map<string, unknown>();
 
   for (const action of actions) {
@@ -190,7 +195,7 @@ async function prepareActions(
   return preparedByName;
 }
 
-function getMaxBaseColumns(rows: HTMLTableRowElement[], actions: ContentTableAction[]) {
+function getMaxBaseColumns(rows: HTMLTableRowElement[]) {
   let max = 0;
 
   for (const row of rows) {
@@ -205,25 +210,25 @@ function ensureActionsHeader(theadRow: HTMLTableRowElement) {
   const existing = theadRow.querySelector(`th.${ACTIONS_HEADER_CLASS}`);
   if (existing) return;
 
-  const th = document.createElement('th');
+  const th = document.createElement("th");
   th.className = `text-center ${ACTIONS_HEADER_CLASS}`;
-  th.textContent = 'Actions';
+  th.textContent = "Actions";
   theadRow.appendChild(th);
 }
 
 function removeActionsUi(table: HTMLTableElement) {
-  const theadRow = table.querySelector('thead tr') as HTMLTableRowElement | null;
+  const theadRow = table.querySelector("thead tr") as HTMLTableRowElement | null;
   theadRow?.querySelectorAll(`th.${ACTIONS_HEADER_CLASS}`).forEach((th) => {
     th.remove();
   });
 
-  const rows = Array.from(table.querySelectorAll('tbody tr')) as HTMLTableRowElement[];
+  const rows = Array.from(table.querySelectorAll("tbody tr")) as HTMLTableRowElement[];
   for (const row of rows) {
     row.querySelectorAll(`td.${ACTIONS_CELL_CLASS}`).forEach((td) => {
       td.remove();
     });
     delete row.dataset.pinned;
-    if (row.style.backgroundColor) row.style.backgroundColor = '';
+    if (row.style.backgroundColor) row.style.backgroundColor = "";
   }
 }
 
@@ -236,8 +241,8 @@ function ensureRowBaseColumns(
 
   let currentBaseCols = Array.from(row.cells).indexOf(actionsCell);
   while (currentBaseCols < maxBaseCols) {
-    const td = document.createElement('td');
-    td.className = 'text-center hidden-xs';
+    const td = document.createElement("td");
+    td.className = "text-center hidden-xs";
 
     row.insertBefore(td, actionsCell);
 
@@ -267,11 +272,11 @@ function renderActionButton(
   api: ContentTableActionApi,
 ) {
   // Default icon/state. Action.render can override fully.
-  ctx.button.className = 'btn btn-xs btn-default';
+  ctx.button.className = "btn btn-xs btn-default";
   ctx.button.disabled = false;
   ctx.button.innerHTML = `<i class="${action.iconClass}"></i>`;
   ctx.button.title = action.headerText;
-  ctx.button.style.cursor = 'pointer';
+  ctx.button.style.cursor = "pointer";
 
   action.render(ctx, prepared as never, api);
 }
@@ -279,9 +284,9 @@ function renderActionButton(
 function ensureActionsCell(row: HTMLTableRowElement): HTMLTableCellElement {
   let cell = row.querySelector(`td.${ACTIONS_CELL_CLASS}`) as HTMLTableCellElement | null;
   if (!cell) {
-    cell = document.createElement('td');
+    cell = document.createElement("td");
     cell.className = `text-center ${ACTIONS_CELL_CLASS}`;
-    cell.style.display = 'flex';
+    cell.style.display = "flex";
     row.appendChild(cell);
   }
   return cell;
@@ -296,9 +301,9 @@ function ensureActionButton(
   let button = actionsCell.querySelector(selector) as HTMLButtonElement | null;
   if (button) return button;
 
-  button = document.createElement('button');
+  button = document.createElement("button");
   button.setAttribute(ACTION_BUTTON_ATTR, action.name);
-  button.type = 'button';
+  button.type = "button";
 
   const insertionPoint = findNextActionButton(actionsCell, action, actionsInOrder);
   if (insertionPoint) actionsCell.insertBefore(button, insertionPoint);

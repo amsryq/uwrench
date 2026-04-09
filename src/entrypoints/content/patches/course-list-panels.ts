@@ -1,15 +1,15 @@
-import { waitForElement } from '../../../lib/utils/wait-for-element';
+import { waitForElement } from "../../../lib/utils/wait-for-element";
 import {
   type CourseListPanel,
   type CourseListPanelApi,
   type CourseListPanelUpdateContext,
-} from '../../../lib/registries/course-list-panels-registry';
-import type { CourseListPanelsRegistry } from '../../../lib/registries/course-list-panels-registry';
+} from "../../../lib/registries/course-list-panels-registry";
+import type { CourseListPanelsRegistry } from "../../../lib/registries/course-list-panels-registry";
 
-const PANEL_ATTR = 'data-uw-course-list-panel';
+const PANEL_ATTR = "data-uw-course-list-panel";
 
 export function mountCourseListPanels(registry: CourseListPanelsRegistry): () => void {
-  if (window.location.pathname !== '/courses/list_course') return () => {};
+  if (window.location.pathname !== "/courses/list_course") return () => {};
 
   const cleanupHandlers: Array<() => void> = [];
   let refreshHandleImpl: (() => Promise<void>) | null = null;
@@ -20,10 +20,10 @@ export function mountCourseListPanels(registry: CourseListPanelsRegistry): () =>
   });
 
   void (async () => {
-    const container = await waitForElement('.content-page .content .container-fluid');
+    const container = await waitForElement(".content-page .content .container-fluid");
     if (stopped || !container) return;
 
-    const titleRow = container.querySelector('.page-title-box')?.closest('.row') ?? null;
+    const titleRow = container.querySelector(".page-title-box")?.closest(".row") ?? null;
 
     const refresh = async () => {
       await update(container, titleRow, refresh, registry);
@@ -39,10 +39,10 @@ export function mountCourseListPanels(registry: CourseListPanelsRegistry): () =>
       if (!document.hidden) void refresh();
     };
 
-    window.addEventListener('pageshow', handlePageShow);
-    document.addEventListener('visibilitychange', handleVisibility);
-    cleanupHandlers.push(() => window.removeEventListener('pageshow', handlePageShow));
-    cleanupHandlers.push(() => document.removeEventListener('visibilitychange', handleVisibility));
+    window.addEventListener("pageshow", handlePageShow);
+    document.addEventListener("visibilitychange", handleVisibility);
+    cleanupHandlers.push(() => window.removeEventListener("pageshow", handlePageShow));
+    cleanupHandlers.push(() => document.removeEventListener("visibilitychange", handleVisibility));
 
     refreshHandleImpl = async () => {
       await refresh();
