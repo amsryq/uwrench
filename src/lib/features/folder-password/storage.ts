@@ -1,9 +1,24 @@
-import { folderPasswordsItem } from "../../storage/items";
-
 export type FolderPasswords = Record<string, string>;
+
+const folderPasswordsItem = storage.defineItem<FolderPasswords>("session:folder_passwords", {
+  fallback: {},
+});
 
 export async function getFolderPasswords(): Promise<FolderPasswords> {
   return await folderPasswordsItem.getValue();
+}
+
+async function setFolderPasswords(passwords: FolderPasswords): Promise<void> {
+  await folderPasswordsItem.setValue(passwords);
+}
+
+async function updateFolderPasswords(
+  updater: (passwords: FolderPasswords) => FolderPasswords | Promise<FolderPasswords>,
+): Promise<FolderPasswords> {
+  const current = await getFolderPasswords();
+  const next = await updater(current);
+  await setFolderPasswords(next);
+  return next;
 }
 
 export async function getFolderPassword(folderKey: string): Promise<string | null> {
@@ -12,17 +27,22 @@ export async function getFolderPassword(folderKey: string): Promise<string | nul
 }
 
 export async function setFolderPassword(folderKey: string, password: string): Promise<void> {
-  const all = await getFolderPasswords();
-  await folderPasswordsItem.setValue({
+  await updateFolderPasswords((all) => ({
     ...all,
     [folderKey]: password,
-  });
+  }));
 }
 
 export async function removeFolderPassword(folderKey: string): Promise<void> {
-  const all = await getFolderPasswords();
-  if (!(folderKey in all)) return;
-  const next = { ...all };
-  delete next[folderKey];
-  await folderPasswordsItem.setValue(next);
+  await updateFolderPasswords((all) => {
+    if (!(folderKey in all)) return all;
+
+    const next = { ...all };
+    delete next[folderKey];
+    return next;
+  });
+}
+
+export async function clearFolderPasswords(): Promise<void> {
+  await setFolderPasswords({});
 }

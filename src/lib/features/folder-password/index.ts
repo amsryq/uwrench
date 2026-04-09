@@ -1,8 +1,8 @@
 import type { FeatureDef } from "../../runtime/types";
 import { waitForElement } from "../../utils/wait-for-element";
 import {
+  clearFolderPasswords,
   getFolderPassword,
-  getFolderPasswords,
   removeFolderPassword,
   setFolderPassword,
 } from "./storage";
@@ -89,10 +89,7 @@ export const folderPasswordFeature: FeatureDef = {
     };
   },
   clearData: async () => {
-    const all = await getFolderPasswords();
-    for (const key of Object.keys(all)) {
-      await removeFolderPassword(key);
-    }
+    await clearFolderPasswords();
   },
 };
 

@@ -1,20 +1,25 @@
 import type { FeatureDef } from "../runtime/types";
-import { loginRedirectStateItem, settingsItem } from "../storage/items";
+import { isFeatureEnabled as getFeatureEnabled } from "../settings/settings-store";
 
 const LOGIN_PATH = "/login";
 const COURSE_LIST_PATH = "/courses/list_course";
 const REDIRECT_URLS = ["*://ufuture.uitm.edu.my/*"];
 
-async function isFeatureEnabled(): Promise<boolean> {
-  const settings = await settingsItem.getValue();
-  return settings.features.loginRedirect?.enabled ?? true;
+type LoginRedirectState = Record<string, string>;
+
+const loginRedirectStateItem = storage.defineItem<LoginRedirectState>("session:login_redirect_state", {
+  fallback: {},
+});
+
+async function isLoginRedirectEnabled(): Promise<boolean> {
+  return await getFeatureEnabled("loginRedirect");
 }
 
 export function registerLoginRedirectListener() {
   const handler = (details: Browser.webRequest.OnBeforeRedirectDetails) => {
     void (async () => {
       if (details.tabId === -1) return;
-      if (!(await isFeatureEnabled())) return;
+      if (!(await isLoginRedirectEnabled())) return;
 
       const stateKey = String(details.tabId);
       const state = await loginRedirectStateItem.getValue();

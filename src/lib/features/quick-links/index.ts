@@ -3,13 +3,13 @@ import type { ContentTableActionsRegistry } from "../../registries/content-table
 import type { CourseListPanelsRegistry } from "../../registries/course-list-panels-registry";
 import {
   addOrUpdateQuickLink,
+  clearQuickLinks,
   removeQuickLink,
   getQuickLinks,
   hasQuickLink,
   type QuickLink,
 } from "./storage";
 import { setupQuickLinksPanel } from "./quick-links-list";
-import { quickLinksItem } from "../../storage/items";
 
 export const quickLinksFeature: FeatureDef = {
   id: "quickLinks",
@@ -74,7 +74,7 @@ export const quickLinksFeature: FeatureDef = {
     };
   },
   clearData: async () => {
-    await quickLinksItem.setValue([]);
+    await clearQuickLinks();
   },
 };
 

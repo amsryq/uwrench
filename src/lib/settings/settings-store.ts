@@ -1,7 +1,21 @@
-import { type SettingsEnvelope } from "./settings-types";
-import { clearableStorageItems, getDefaultEnvelope, settingsItem } from "../storage/items";
+import { SETTINGS_SCHEMA_VERSION, type SettingsEnvelope } from "./settings-types";
+import { clearFolderPasswords } from "../features/folder-password/storage";
+import { clearPinnedFolders } from "../features/folder-pinning/storage";
+import { clearQuickLinks } from "../features/quick-links/storage";
 
 const RAW_SETTINGS_KEY = "uwrench:settings";
+
+function getDefaultEnvelope(): SettingsEnvelope {
+  return {
+    schemaVersion: SETTINGS_SCHEMA_VERSION,
+    updatedAt: new Date().toISOString(),
+    features: {},
+  };
+}
+
+const settingsItem = storage.defineItem<SettingsEnvelope>("local:uwrench:settings", {
+  fallback: getDefaultEnvelope(),
+});
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -32,6 +46,10 @@ export async function saveSettings(next: SettingsEnvelope): Promise<void> {
   });
 }
 
+export async function resetSettings(): Promise<void> {
+  await settingsItem.setValue(getDefaultEnvelope());
+}
+
 export async function updateSettings(
   updater: (current: SettingsEnvelope) => SettingsEnvelope | Promise<SettingsEnvelope>,
 ): Promise<SettingsEnvelope> {
@@ -55,6 +73,11 @@ export async function setFeatureEnabled(featureId: string, enabled: boolean): Pr
       },
     };
   });
+}
+
+export async function isFeatureEnabled(featureId: string): Promise<boolean> {
+  const settings = await loadSettings();
+  return settings.features[featureId]?.enabled ?? true;
 }
 
 export async function setSubFeatureEnabled(
@@ -148,5 +171,10 @@ export function getRawSettingsKey(): string {
 }
 
 export async function clearAllStorage(): Promise<void> {
-  await Promise.all(clearableStorageItems.map(({ reset }) => reset()));
+  await Promise.all([
+    resetSettings(),
+    clearQuickLinks(),
+    clearFolderPasswords(),
+    clearPinnedFolders(),
+  ]);
 }

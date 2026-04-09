@@ -1,6 +1,10 @@
 import type { FeatureDef } from "../runtime/types";
 import type { ContentTableActionsRegistry } from "../registries/content-table-actions-registry";
-import { pinnedFoldersItem } from "../storage/items";
+import {
+  clearPinnedFolders,
+  getPinnedFolders,
+  togglePinnedFolder,
+} from "./folder-pinning/storage";
 
 export const folderPinningFeature: FeatureDef = {
   id: "folderPinning",
@@ -17,7 +21,7 @@ export const folderPinningFeature: FeatureDef = {
       headerWidth: "5%",
       iconClass: "fa fa-thumb-tack",
       prepare: async () => {
-        return await pinnedFoldersItem.getValue();
+        return await getPinnedFolders();
       },
       render: (ctx, pinnedFolders, api) => {
         const { row, href, button } = ctx;
@@ -31,7 +35,7 @@ export const folderPinningFeature: FeatureDef = {
         button.onclick = async (e) => {
           e.preventDefault();
           e.stopPropagation();
-          await togglePin(href);
+          await togglePinnedFolder(href);
           await api.refresh();
         };
 
@@ -61,19 +65,9 @@ export const folderPinningFeature: FeatureDef = {
     };
   },
   clearData: async () => {
-    await pinnedFoldersItem.setValue([]);
+    await clearPinnedFolders();
   },
 };
-
-async function togglePin(href: string) {
-  const pinnedFolders = await pinnedFoldersItem.getValue();
-
-  const index = pinnedFolders.indexOf(href);
-  if (index >= 0) pinnedFolders.splice(index, 1);
-  else pinnedFolders.push(href);
-
-  await pinnedFoldersItem.setValue([...pinnedFolders]);
-}
 
 function sortRowsByPinned(tbody: Element) {
   const rows = Array.from(tbody.querySelectorAll("tr")) as HTMLElement[];
