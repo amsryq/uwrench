@@ -4,6 +4,11 @@ export type { RegistryId, RuntimeRegistries } from './registries';
 
 export type Cleanup = () => void | Promise<void>;
 
+export type ContentRuntimeContext = {
+  isInvalidated?: boolean;
+  onInvalidated?: (cleanup: Cleanup) => void;
+};
+
 export type RuntimeEnv = 'content' | 'background' | 'popup';
 
 export type PatchId = 'courseContentTableActions' | 'courseListPanels';
@@ -53,6 +58,7 @@ export type FeatureContext<
   env: RuntimeEnv;
   registries: Registries;
   patches: Patches;
+  contentScriptCtx?: ContentRuntimeContext;
 };
 
 export type FeatureSetupResult = {

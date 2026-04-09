@@ -1,7 +1,6 @@
 import type { FeatureDef } from '../runtime/types';
 import type { ContentTableActionsRegistry } from '../registries/content-table-actions-registry';
-
-const PINNED_FOLDERS_KEY = 'local:pinned_folders';
+import { pinnedFoldersItem } from '../storage/items';
 
 export const folderPinningFeature: FeatureDef = {
   id: 'folderPinning',
@@ -16,12 +15,12 @@ export const folderPinningFeature: FeatureDef = {
 
     const dispose = registry.register({
       name: 'pin',
-      headerText: 'Pin',
-      headerWidth: '5%',
-      iconClass: 'fa fa-thumb-tack',
-      prepare: async () => {
-        return (await storage.getItem<string[]>(PINNED_FOLDERS_KEY)) ?? [];
-      },
+        headerText: 'Pin',
+        headerWidth: '5%',
+        iconClass: 'fa fa-thumb-tack',
+        prepare: async () => {
+          return await pinnedFoldersItem.getValue();
+        },
       render: (ctx, pinnedFolders, api) => {
         const { row, href, button } = ctx;
 
@@ -66,18 +65,18 @@ export const folderPinningFeature: FeatureDef = {
     };
   },
   clearData: async () => {
-    await storage.setItem(PINNED_FOLDERS_KEY, []);
+    await pinnedFoldersItem.setValue([]);
   },
 };
 
 async function togglePin(href: string) {
-  const pinnedFolders = (await storage.getItem<string[]>(PINNED_FOLDERS_KEY)) ?? [];
+  const pinnedFolders = await pinnedFoldersItem.getValue();
 
   const index = pinnedFolders.indexOf(href);
   if (index >= 0) pinnedFolders.splice(index, 1);
   else pinnedFolders.push(href);
 
-  await storage.setItem(PINNED_FOLDERS_KEY, pinnedFolders);
+  await pinnedFoldersItem.setValue([...pinnedFolders]);
 }
 
 function sortRowsByPinned(tbody: Element) {
@@ -95,5 +94,7 @@ function sortRowsByPinned(tbody: Element) {
     return aIndex - bIndex;
   });
 
-  rows.forEach((row) => tbody.appendChild(row));
+  rows.forEach((row) => {
+    tbody.appendChild(row);
+  });
 }

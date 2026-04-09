@@ -9,8 +9,7 @@ import {
   type QuickLink,
 } from './storage';
 import { setupQuickLinksPanel } from './quick-links-list';
-
-const QUICK_LINKS_KEY = 'local:quick_links';
+import { quickLinksItem } from '../../storage/items';
 
 export const quickLinksFeature: FeatureDef = {
   id: 'quickLinks',
@@ -75,7 +74,7 @@ export const quickLinksFeature: FeatureDef = {
     };
   },
   clearData: async () => {
-    await storage.setItem(QUICK_LINKS_KEY, []);
+    await quickLinksItem.setValue([]);
   },
 };
 

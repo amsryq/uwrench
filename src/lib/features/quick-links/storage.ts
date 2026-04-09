@@ -1,3 +1,5 @@
+import { quickLinksItem } from '../../storage/items';
+
 export type QuickLinkType = 'course_content' | (string & {});
 
 export type QuickLink = {
@@ -9,10 +11,8 @@ export type QuickLink = {
   addedAt?: string;
 };
 
-const QUICK_LINKS_KEY = 'local:quick_links';
-
 export async function getQuickLinks(): Promise<QuickLink[]> {
-  return (await storage.getItem<QuickLink[]>(QUICK_LINKS_KEY)) ?? [];
+  return await quickLinksItem.getValue();
 }
 
 export async function addOrUpdateQuickLink(link: QuickLink): Promise<void> {
@@ -28,13 +28,13 @@ export async function addOrUpdateQuickLink(link: QuickLink): Promise<void> {
     links.push(link);
   }
 
-  await storage.setItem(QUICK_LINKS_KEY, links);
+  await quickLinksItem.setValue(links);
 }
 
 export async function removeQuickLink(type: QuickLinkType, href: string): Promise<void> {
   const links = await getQuickLinks();
   const filtered = links.filter((existing) => !(existing.type === type && existing.href === href));
-  await storage.setItem(QUICK_LINKS_KEY, filtered);
+  await quickLinksItem.setValue(filtered);
 }
 
 export function hasQuickLink(

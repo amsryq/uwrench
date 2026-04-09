@@ -1,6 +1,15 @@
 import type { SettingsEnvelope, StoredFeatureState } from '../settings/settings-types';
 import { loadSettings, watchSettings } from '../settings/settings-store';
-import type { FeatureDef, FeatureState, PatchDef, PatchHandle, PatchId, RegistryId, RuntimeEnv } from './types';
+import type {
+  ContentRuntimeContext,
+  FeatureDef,
+  FeatureState,
+  PatchDef,
+  PatchHandle,
+  PatchId,
+  RegistryId,
+  RuntimeEnv,
+} from './types';
 import { createRegistries, ensureRegistry, type RuntimeRegistries } from './registries';
 import { createContentPatchLoader } from './patch-loader';
 
@@ -94,12 +103,14 @@ export type FeatureManagerConfig = {
   env: RuntimeEnv;
   features: Array<FeatureDef<any, any, any>>;
   patchLoader?: (patchId: PatchId) => Promise<PatchDef<any> | undefined>;
+  contentScriptCtx?: ContentRuntimeContext;
 };
 
 export class FeatureManager {
   private readonly env: RuntimeEnv;
   private readonly featuresById: Map<string, FeatureDef<any, any, any>>;
   private readonly patchLoader?: (patchId: PatchId) => Promise<PatchDef<any> | undefined>;
+  private readonly contentScriptCtx?: ContentRuntimeContext;
 
   private readonly registries: RuntimeRegistries = createRegistries();
   private readonly patchesById: Map<PatchId, PatchDef<any>> = new Map();
@@ -113,11 +124,16 @@ export class FeatureManager {
     this.env = config.env;
     this.featuresById = new Map(config.features.map((f) => [f.id, f]));
     this.patchLoader = config.patchLoader ?? (this.env === "content" ? createContentPatchLoader() : undefined);
+    this.contentScriptCtx = config.contentScriptCtx;
   }
 
   async start(): Promise<void> {
     this.settings = await loadSettings();
     await this.applyAll();
+
+    this.contentScriptCtx?.onInvalidated?.(() => {
+      void this.shutdown();
+    });
 
     this.stopWatching = watchSettings(async (next) => {
       this.settings = next;
@@ -128,6 +144,20 @@ export class FeatureManager {
   stop(): void {
     this.stopWatching?.();
     this.stopWatching = null;
+  }
+
+  async shutdown(): Promise<void> {
+    this.stop();
+
+    for (const active of this.activeFeatures.values()) {
+      await active.cleanup?.();
+    }
+    this.activeFeatures.clear();
+
+    for (const active of this.activePatches.values()) {
+      await active.cleanup?.();
+    }
+    this.activePatches.clear();
   }
 
   private async applyAll(): Promise<void> {
@@ -218,6 +248,7 @@ export class FeatureManager {
             env: this.env,
             registries: this.pickRegistriesForFeature(def),
             patches,
+            contentScriptCtx: this.contentScriptCtx,
           };
           const result = await def.setup(ctx as any, state);
           this.activeFeatures.set(def.id, {
@@ -261,6 +292,7 @@ export class FeatureManager {
           env: this.env,
           registries: this.pickRegistriesForFeature(def),
           patches,
+          contentScriptCtx: this.contentScriptCtx,
         };
         const result = await def.setup(ctx as any, state);
 
@@ -283,6 +315,7 @@ export class FeatureManager {
         env: this.env,
         registries: this.pickRegistriesForFeature(def),
         patches,
+        contentScriptCtx: this.contentScriptCtx,
       };
 
       const result = await def.setup(ctx as any, state);
