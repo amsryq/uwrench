@@ -10,7 +10,7 @@
 
 ---
 
-uwrench is a browser extension for [UiTM UFUTURE](ufuture.uitm.edu.my).
+uwrench is a browser extension for [UiTM UFUTURE](https://ufuture.uitm.edu.my/).
 
 It adds small quality-of-life improvements directly to the pages students already use, with per-feature toggles in the extension popup.
 
